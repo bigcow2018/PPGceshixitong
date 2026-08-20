@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>PPG 心率示意</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0a0f1a;
+      color: #e2e8f0;
+      font-family: system-ui, -apple-system, "PingFang SC", sans-serif;
+      min-height: 100vh;
+      min-height: 100dvh;
+      padding: 12px 12px 28px;
+    }
+    h1 {
+      text-align: center;
+      font-size: 18px;
+      color: #fb7185;
+      margin-bottom: 8px;
+    }
+    .disc {
+      background: #3f1d1d;
+      color: #fecaca;
+      font-size: 12px;
+      line-height: 1.45;
+      padding: 10px 12px;
+      border-radius: 10px;
+      margin-bottom: 12px;
+      font-weight: 600;
+    }
+    .disc strong { color: #fda4af; }
+
+    .principle {
+      background: #111827;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 10px 12px;
+      margin-bottom: 12px;
+      font-size: 12px;
+      color: #cbd5e1;
+      line-height: 1.55;
+    }
+    .principle h2 {
+      font-size: 13px;
+      color: #7dd3fc;
+      margin-bottom: 6px;
+    }
+    .principle ol { padding-left: 18px; }
+    .principle li { margin-bottom: 4px; }
+    .flow {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 8px;
+      justify-content: center;
+    }
+    .flow span {
+      background: #1e293b;
+      border: 1px solid #475569;
+      border-radius: 8px;
+      padding: 4px 8px;
+      font-size: 11px;
+      color: #e2e8f0;
+    }
+    .flow span.on {
+      border-color: #fb7185;
+      color: #fda4af;
+      box-shadow: 0 0 8px rgba(251,113,133,.3);
+    }
+
+    #status {
+      text-align: center;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 8px;
+      border-radius: 8px;
+      background: #1e293b;
+      margin-bottom: 10px;
+    }
+    #status.ok { background: #14532d; color: #86efac; }
+    #status.run { background: #1e3a5f; color: #7dd3fc; }
+    #status.warn { background: #7c2d12; color: #fed7aa; }
+
+    .stage {
+      position: relative;
+      width: 100%;
+      max-width: 360px;
+      margin: 0 auto 12px;
+      border-radius: 16px;
+      overflow: hidden;
+      background: #000;
+      border: 2px solid #334155;
+      aspect-ratio: 3/4;
+    }
+    video, #overlay {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    #overlay { pointer-events: none; }
+    .finger-guide {
+      position: absolute;
+      left: 50%; top: 50%;
+      transform: translate(-50%, -50%);
+      width: 42%;
+      aspect-ratio: 1;
+      border: 2px dashed rgba(251,113,133,.85);
+      border-radius: 50%;
+      z-index: 5;
+      pointer-events: none;
+      box-shadow: 0 0 0 999px rgba(0,0,0,.35);
+    }
+    .finger-guide.good {
+      border-color: #4ade80;
+      border-style: solid;
+    }
+
+    .bpm-box {
+      text-align: center;
+      margin-bottom: 12px;
+    }
+    .bpm-box .lab { font-size: 12px; color: #94a3b8; }
+    .bpm-box .num {
+      font-size: 52px;
+      font-weight: 800;
+      color: #fb7185;
+      font-variant-numeric: tabular-nums;
+      line-height: 1.1;
+    }
+    .bpm-box .unit { font-size: 14px; color: #94a3b8; }
+    .bpm-box .sub {
+      font-size: 12px;
+      color: #64748b;
+      margin-top: 4px;
+    }
+
+    #waveWrap {
+      background: #020617;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 10px;
+      position: relative;
+    }
+    #wave {
+      display: block;
+      width: 100%;
+      height: 140px;
+    }
+    .wave-lab {
+      position: absolute;
+      left: 8px; top: 6px;
+      font-size: 10px;
+      color: #64748b;
+    }
+
+    .meters {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .meters .card {
+      background: #1e293b;
+      border-radius: 10px;
+      padding: 8px;
+      text-align: center;
+      border: 1px solid #334155;
+    }
+    .meters .lab { font-size: 10px; color: #94a3b8; }
+    .meters .val { font-size: 16px; font-weight: 700; margin-top: 2px; }
+
+    .btns {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+    }
+    button {
+      padding: 12px 16px;
+      font-size: 14px;
+      font-weight: 700;
+      border: none;
+      border-radius: 12px;
+      background: #e11d48;
+      color: #fff;
+    }
+    #btnStop { background: #64748b; }
+    #btnTorch { background: #ca8a04; }
+
+    .tips {
+      margin-top: 12px;
+      font-size: 11px;
+      color: #94a3b8;
+      line-height: 1.5;
+      background: #1e293b;
+      border-radius: 10px;
+      padding: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>PPG 心率示意</h1>
+  <div class="disc">
+    <strong>非医疗用途 · 仅供原理演示</strong><br>
+    本页用摄像头估测的心率不能用于诊断、急救或健康决策。结果受按压、光线、设备影响，可能不准或失败。
+  </div>
+
+  <div class="principle">
+    <h2>原理（光电容积脉搏波 PPG）</h2>
+    <ol>
+      <li><b>闪光灯</b>从指尖一侧（或透过皮肤）照明</li>
+      <li>每次心跳，指尖血量微增，<b>透光/反光略变暗或变亮</b></li>
+      <li>后置摄像头连续拍摄，读取画面<strong>红色分量</strong>的明暗</li>
+      <li>得到一条随脉搏起伏的<strong>波形</strong>，数波峰间隔 → 估算 <b>BPM</b></li>
+    </ol>
+    <div class="flow">
+      <span id="s1">① 闪光灯</span>
+      <span id="s2">② 指尖透光</span>
+      <span id="s3">③ 红光采样</span>
+      <span id="s4">④ 波形</span>
+      <span id="s5">⑤ BPM</span>
+    </div>
+  </div>
+
+  <div id="status">点「开始」并允许摄像头；用手指盖住后置镜头</div>
+
+  <div class="stage" id="stage">
+    <video id="video" playsinline webkit-playsinline muted></video>
+    <canvas id="overlay"></canvas>
+    <div class="finger-guide" id="guide"></div>
+  </div>
+
+  <div class="bpm-box">
+    <div class="lab">估算心率</div>
+    <div class="num"><span id="bpm">--</span></div>
+    <div class="unit">BPM（次/分钟）</div>
+    <div class="sub" id="conf">等待稳定信号…</div>
+  </div>
+
+  <div id="waveWrap">
+    <canvas id="wave" width="360" height="140"></canvas>
+    <div class="wave-lab">PPG 波形（红光强度）</div>
+  </div>
+
+  <div class="meters">
+    <div class="card">
+      <div class="lab">红光均值</div>
+      <div class="val" id="redVal">—</div>
+    </div>
+    <div class="card">
+      <div class="lab">信号质量</div>
+      <div class="val" id="quality">—</div>
+    </div>
+    <div class="card">
+      <div class="lab">采样</div>
+      <div class="val" id="fps">—</div>
+    </div>
+  </div>
+
+  <div class="btns">
+    <button id="btnStart">开始</button>
+    <button id="btnTorch">开/关闪光灯</button>
+    <button id="btnStop">停止</button>
+  </div>
+
+  <div class="tips">
+    1. 需 HTTPS（GitHub Pages）；建议 Android / iPhone 的 Chrome 或 Safari<br>
+    2. 手指轻轻盖住<b>后置摄像头</b>，尽量盖住闪光灯或紧贴镜头（以画面发红为准）<br>
+    3. 保持不动 10～20 秒，等波形规则后再看 BPM<br>
+    4. 部分手机网页无法控制闪光灯，可靠自然光紧贴镜头试
+  </div>
+
+  <script>
+    const video = document.getElementById('video');
+    const overlay = document.getElementById('overlay');
+    const octx = overlay.getContext('2d');
+    const wave = document.getElementById('wave');
+    const wctx = wave.getContext('2d');
+    const statusEl = document.getElementById('status');
+    const guide = document.getElementById('guide');
+    const bpmEl = document.getElementById('bpm');
+    const confEl = document.getElementById('conf');
+    const redVal = document.getElementById('redVal');
+    const qualityEl = document.getElementById('quality');
+    const fpsEl = document.getElementById('fps');
+
+    let stream = null;
+    let track = null;
+    let running = false;
+    let torchOn = false;
+    let rafId = null;
+    let samples = []; // {t, v}
+    const MAX_SAMPLES = 180;
+    let peaks = [];
+    let lastBpm = null;
+    let frameCount = 0;
+    let fpsT0 = 0;
+    let smooth = 0;
+    let signalOk = false;
+
+    function setStatus(t, cls) {
+      statusEl.textContent = t;
+      statusEl.className = cls || '';
+    }
+
+    function setFlow(n) {
+      for (let i = 1; i <= 5; i++) {
+        document.getElementById('s' + i).classList.toggle('on', i <= n);
+      }
+    }
+
+    function resizeWave() {
+      const w = Math.min(360, wave.parentElement.clientWidth || 360);
+      wave.width = w;
+      wave.height = 140;
+    }
+    window.addEventListener('resize', resizeWave);
+
+    async function openCamera() {
+      const constraints = {
+        audio: false,
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+          frameRate: { ideal: 30 }
+        }
+      };
+      stream = await navigator.mediaDevices.getUserMedia(constraints);
+      track = stream.getVideoTracks()[0];
+      video.srcObject = stream;
+      video.setAttribute('playsinline', 'true');
+      video.muted = true;
+      await video.play();
+      await tryTorch(true);
+    }
+
+    async function tryTorch(on) {
+      if (!track) return false;
+      try {
+        const caps = track.getCapabilities ? track.getCapabilities() : {};
+        if (caps.torch) {
+          await track.applyConstraints({ advanced: [{ torch: !!on }] });
+          torchOn = !!on;
+          return true;
+        }
+      } catch (e) {}
+      // 部分机型用 fillLightMode
+      try {
+        await track.applyConstraints({ advanced: [{ torch: !!on }] });
+        torchOn = !!on;
+        return true;
+      } catch (e2) {}
+      return false;
+    }
+
+    function sampleRed() {
+      const vw = video.videoWidth;
+      const vh = video.videoHeight;
+      if (!vw || !vh) return null;
+
+      if (overlay.width !== vw) {
+        overlay.width = vw;
+        overlay.height = vh;
+      }
+
+      octx.drawImage(video, 0, 0, vw, vh);
+
+      // 中心区域采样
+      const rw = Math.max(8, (vw * 0.2) | 0);
+      const rh = Math.max(8, (vh * 0.2) | 0);
+      const sx = ((vw - rw) / 2) | 0;
+      const sy = ((vh - rh) / 2) | 0;
+      const img = octx.getImageData(sx, sy, rw, rh);
+      const d = img.data;
+      let sumR = 0, sumG = 0, sumB = 0, n = 0;
+      for (let i = 0; i < d.length; i += 4) {
+        sumR += d[i];
+        sumG += d[i + 1];
+        sumB += d[i + 2];
+        n++;
+      }
+      const r = sumR / n;
+      const g = sumG / n;
+      const b = sumB / n;
+
+      // 画采样框
+      octx.strokeStyle = signalOk ? 'rgba(74,222,128,0.9)' : 'rgba(251,113,133,0.9)';
+      octx.lineWidth = 3;
+      octx.strokeRect(sx, sy, rw, rh);
+
+      return { r, g, b };
+    }
+
+    function drawWave() {
+      const w = wave.width;
+      const h = wave.height;
+      wctx.fillStyle = '#020617';
+      wctx.fillRect(0, 0, w, h);
+
+      wctx.strokeStyle = '#1e293b';
+      for (let i = 0; i < 4; i++) {
+        const y = (h / 4) * i;
+        wctx.beginPath();
+        wctx.moveTo(0, y);
+        wctx.lineTo(w, y);
+        wctx.stroke();
+      }
+
+      if (samples.length < 3) return;
+
+      let min = Infinity, max = -Infinity;
+      for (const s of samples) {
+        min = Math.min(min, s.v);
+        max = Math.max(max, s.v);
+      }
+      const span = Math.max(1, max - min);
+
+      // 填充
+      wctx.beginPath();
+      samples.forEach((s, i) => {
+        const x = (i / (MAX_SAMPLES - 1)) * (w - 2) + 1;
+        const y = h - 8 - ((s.v - min) / span) * (h - 16);
+        if (i === 0) wctx.moveTo(x, h);
+        wctx.lineTo(x, y);
+      });
+      wctx.lineTo(((samples.length - 1) / (MAX_SAMPLES - 1)) * (w - 2) + 1, h);
+      wctx.closePath();
+      wctx.fillStyle = 'rgba(251,113,133,0.2)';
+      wctx.fill();
+
+      // 曲线
+      wctx.beginPath();
+      samples.forEach((s, i) => {
+        const x = (i / (MAX_SAMPLES - 1)) * (w - 2) + 1;
+        const y = h - 8 - ((s.v - min) / span) * (h - 16);
+        if (i === 0) wctx.moveTo(x, y);
+        else wctx.lineTo(x, y);
+      });
+      wctx.strokeStyle = '#fb7185';
+      wctx.lineWidth = 2;
+      wctx.stroke();
+    }
+
+    function estimateBpm(now) {
+      if (samples.length < 40) return null;
+
+      // 简单滑动差分找峰：相对局部平均的上穿
+      const vals = samples.map(s => s.v);
+      const times = samples.map(s => s.t);
+      const win = 7;
+      const detrend = [];
+      for (let i = 0; i < vals.length; i++) {
+        let a = 0, c = 0;
+        for (let j = i - win; j <= i + win; j++) {
+          if (j >= 0 && j < vals.length) { a += vals[j]; c++; }
+        }
+        detrend.push(vals[i] - a / c);
+      }
+
+      const newPeaks = [];
+      const thr = 0.3 * Math.max(...detrend.map(Math.abs), 0.5);
+      for (let i = 2; i < detrend.length - 2; i++) {
+        if (detrend[i] > thr &&
+            detrend[i] >= detrend[i - 1] &&
+            detrend[i] >= detrend[i + 1] &&
+            detrend[i] >= detrend[i - 2] &&
+            detrend[i] >= detrend[i + 2]) {
+          const t = times[i];
+          if (!newPeaks.length || t - newPeaks[newPeaks.length - 1] > 280) {
+            newPeaks.push(t);
+          }
+        }
+      }
+
+      peaks = newPeaks.filter(t => now - t < 8000);
+      if (peaks.length < 3) return null;
+
+      const intervals = [];
+      for (let i = 1; i < peaks.length; i++) {
+        intervals.push(peaks[i] - peaks[i - 1]);
+      }
+      intervals.sort((a, b) => a - b);
+      const mid = intervals[intervals.length >> 1];
+      if (mid < 300 || mid > 1500) return null; // 40–200 BPM 外丢弃
+      return Math.round(60000 / mid);
+    }
+
+    function loop(now) {
+      if (!running) return;
+
+      const rgb = sampleRed();
+      if (rgb) {
+        // 指尖覆盖时画面偏红、整体较暗或均匀
+        const redDom = rgb.r > rgb.g + 5 && rgb.r > rgb.b + 5;
+        const covered = rgb.r > 40 && redDom;
+        signalOk = covered;
+        guide.classList.toggle('good', covered);
+
+        // 用红色作为 PPG；轻度平滑
+        const raw = rgb.r;
+        smooth = smooth ? smooth * 0.72 + raw * 0.28 : raw;
+
+        samples.push({ t: now, v: smooth });
+        if (samples.length > MAX_SAMPLES) samples.shift();
+
+        redVal.textContent = smooth.toFixed(1);
+
+        // 信号质量：最近一段的波动幅度
+        if (samples.length > 20) {
+          const recent = samples.slice(-30);
+          let mn = Infinity, mx = -Infinity;
+          for (const s of recent) { mn = Math.min(mn, s.v); mx = Math.max(mx, s.v); }
+          const amp = mx - mn;
+          let q = '弱';
+          if (amp > 2 && covered) q = '中';
+          if (amp > 5 && covered) q = '较好';
+          qualityEl.textContent = q;
+          if (covered && amp > 1.5) setFlow(4);
+          else if (covered) setFlow(3);
+          else setFlow(torchOn ? 2 : 1);
+        }
+
+        const bpm = estimateBpm(now);
+        if (bpm && covered) {
+          lastBpm = lastBpm ? Math.round(lastBpm * 0.6 + bpm * 0.4) : bpm;
+          bpmEl.textContent = String(lastBpm);
+          confEl.textContent = '示意值 · 非医疗设备';
+          setFlow(5);
+          setStatus('检测到类似脉搏的波动（示意）', 'ok');
+        } else if (!covered) {
+          confEl.textContent = '请用手指盖住镜头，画面应变红';
+          setStatus('请覆盖后置摄像头（和闪光灯）', 'warn');
+        } else {
+          confEl.textContent = '保持静止，采集波形中…';
+          setStatus('采集中 · 保持手指稳定', 'run');
+        }
+      }
+
+      frameCount++;
+      if (!fpsT0) fpsT0 = now;
+      if (now - fpsT0 >= 1000) {
+        fpsEl.textContent = frameCount + '/s';
+        frameCount = 0;
+        fpsT0 = now;
+      }
+
+      drawWave();
+      rafId = requestAnimationFrame(loop);
+    }
+
+    async function start() {
+      if (running) return;
+      try {
+        setStatus('打开摄像头…', 'run');
+        await openCamera();
+        running = true;
+        samples = [];
+        peaks = [];
+        lastBpm = null;
+        smooth = 0;
+        setFlow(1);
+        setStatus(torchOn ? '闪光灯已尝试打开 · 请盖住镜头' : '请盖住镜头（若无闪光灯请紧贴）', 'run');
+        fpsT0 = 0;
+        frameCount = 0;
+        rafId = requestAnimationFrame(loop);
+      } catch (e) {
+        setStatus('摄像头失败：' + (e.message || e.name), 'warn');
+      }
+    }
+
+    function stop() {
+      running = false;
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = null;
+      tryTorch(false);
+      if (stream) {
+        stream.getTracks().forEach(t => t.stop());
+        stream = null;
+      }
+      track = null;
+      video.srcObject = null;
+      setStatus('已停止');
+      setFlow(0);
+    }
+
+    document.getElementById('btnStart').onclick = start;
+    document.getElementById('btnStop').onclick = stop;
+    document.getElementById('btnTorch').onclick = async () => {
+      if (!track) {
+        setStatus('请先开始', 'warn');
+        return;
+      }
+      const ok = await tryTorch(!torchOn);
+      setStatus(ok ? (torchOn ? '闪光灯开' : '闪光灯关') : '本机网页无法控制闪光灯，请紧贴镜头', ok ? 'run' : 'warn');
+    };
+
+    resizeWave();
+    setFlow(0);
+
+    if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+      setStatus('请使用 HTTPS（GitHub Pages）打开', 'warn');
+    }
+  </script>
+</body>
+</html>
